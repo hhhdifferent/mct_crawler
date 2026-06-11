@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+
+# 爬虫数据输出
+data/
+*.csv
+
+# IDE
+.idea/
+.vscode/
+*.iml
