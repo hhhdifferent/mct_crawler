@@ -446,7 +446,8 @@ def save_to_csv(news_list, output_dir=None):
 
 def main():
     print("=" * 60)
-    print("文化和旅游部"时政要闻"爬虫")
+    # 修复语法错误：使用转义双引号
+    print("文化和旅游部\"时政要闻\"爬虫")
     print(f"最大页数: {'全部' if MAX_PAGES == 0 else MAX_PAGES}  |  输出目录: {OUTPUT_DIR}")
     print("=" * 60)
     news_data = crawl_all_news(START_URL)
