@@ -22,8 +22,9 @@ REQUEST_DELAY = 1
 DETAIL_DELAY = 0.5
 
 # GitHub Actions 环境变量控制
-MAX_PAGES = int(os.environ.get('MAX_PAGES', '0'))       # 0=全部页面
-OUTPUT_DIR = os.environ.get('OUTPUT_DIR', '.')           # 输出目录
+MAX_PAGES = int(os.environ.get('MAX_PAGES', '0'))  # 0=全部页面
+OUTPUT_DIR = os.environ.get('OUTPUT_DIR', '.')  # 输出目录
+
 
 def fetch_page(url):
     try:
@@ -34,6 +35,7 @@ def fetch_page(url):
     except Exception as e:
         print(f"  请求失败 {url}: {e}")
         return None
+
 
 def parse_news_list(tree, page_url):
     news_items = []
@@ -48,6 +50,7 @@ def parse_news_list(tree, page_url):
             if not any(item['url'] == full_url for item in news_items):
                 news_items.append({'title': title, 'url': full_url})
     return news_items
+
 
 def get_next_page_url(tree, current_url):
     """
@@ -69,16 +72,17 @@ def get_next_page_url(tree, current_url):
             next_url = f'{base}_{page_n}.htm'
         print(f"    → 下一页: {next_url}")
         return next_url
-    
+
     # 兜底：尝试 XPath 找下一页链接（其他网站可能有用）
     next_link = tree.xpath('/html/body/div[6]/div[2]/div[2]/div/span[4]/a')
     if next_link and next_link[0].get('href'):
         href = next_link[0].get('href')
         if href and 'javascript' not in href and 'void' not in href:
             return urljoin(current_url, href)
-    
+
     print(f"    ✗ 无法构造下一页URL")
     return None
+
 
 def clean_text_ex(text):
     """增强清理：去除零宽空格、不可见控制字符、HTML实体残留"""
@@ -97,6 +101,7 @@ def clean_text_ex(text):
     # 合并多余空白字符（包括换行、制表）为单个空格
     text = re.sub(r'\s+', ' ', text)
     return text.strip()
+
 
 def parse_article_detail(url):
     tree = fetch_page(url)
@@ -119,18 +124,18 @@ def parse_article_detail(url):
 
     # ------ 时间提取：gov.cn / mct.gov.cn 兼容 ------
     # 优先顺序：meta标签 > 特定class/id > 特征文本
-    
+
     # 1) meta 标签（最可靠）
     time_candidates = tree.xpath('//meta[@property="article:published_time"]/@content')
     if not time_candidates:
         time_candidates = tree.xpath('//meta[@name="publishdate"]/@content')
-    
+
     # 2) gov.cn：class="pages-date" 或 id="PubTime"
     if not time_candidates:
         time_candidates = tree.xpath('//span[contains(@class, "pages-date")]/text()')
     if not time_candidates:
         time_candidates = tree.xpath('//span[@id="PubTime"]/text()')
-    
+
     # 3) mct.gov.cn 新版：包含日期特征的文本（优先匹配与URL一致的日期）
     if not time_candidates:
         # 从URL提取年月用于校验
@@ -152,7 +157,7 @@ def parse_article_detail(url):
     url_year = url_ymd.group(1) if url_ymd else None
     url_month = url_ymd.group(2) if url_ymd else None
     url_day = url_ymd.group(3) if url_ymd else None
-    
+
     for raw_time in (tc.strip() for tc in time_candidates if tc and tc.strip()):
         # 精确匹配 "YYYY-MM-DD HH:MM" 格式
         match = re.search(r'(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})', raw_time)
@@ -189,7 +194,8 @@ def parse_article_detail(url):
         source_elem = tree.xpath('/html/body/div[3]/div[1]/div/div[1]/span')
 
     if source_elem:
-        raw_source = source_elem[0].strip() if isinstance(source_elem[0], str) else source_elem[0].text_content().strip()
+        raw_source = source_elem[0].strip() if isinstance(source_elem[0], str) else source_elem[
+            0].text_content().strip()
         source = clean_text_ex(raw_source)  # 关键清理步骤
         # 提取"来源：xxx"中的名称
         sm = re.search(r'来源[：:]\s*(.*)', source)
@@ -198,7 +204,8 @@ def parse_article_detail(url):
 
     # 备选逻辑（如果精确XPath失效）
     if not publish_time or not source:
-        meta_candidates = tree.xpath('//div[contains(text(), "来源") or contains(text(), "时间")] | //span[contains(text(), "来源") or contains(text(), "时间")]')
+        meta_candidates = tree.xpath(
+            '//div[contains(text(), "来源") or contains(text(), "时间")] | //span[contains(text(), "来源") or contains(text(), "时间")]')
         meta_text = ''
         for elem in meta_candidates:
             txt = elem.text_content().strip()
@@ -240,7 +247,8 @@ def parse_article_detail(url):
     content = ''
     content_elem = tree.xpath('//*[@id="UCAP-CONTENT"]')
     if not content_elem:
-        content_elem = tree.xpath('//div[@class="TRS_Editor"] | //div[@class="article-content"] | //div[@class="content"]')
+        content_elem = tree.xpath(
+            '//div[@class="TRS_Editor"] | //div[@class="article-content"] | //div[@class="content"]')
     if content_elem:
         paragraphs = content_elem[0].xpath('.//p//text() | .//div//text()')
         raw_content = '\n'.join([p.strip() for p in paragraphs if p.strip()])
@@ -389,6 +397,7 @@ def parse_article_detail(url):
         'content': content
     }
 
+
 def crawl_all_news(start_url):
     all_news = []
     current_url = start_url
@@ -426,6 +435,7 @@ def crawl_all_news(start_url):
 
     return all_news
 
+
 def save_to_csv(news_list, output_dir=None):
     if not news_list:
         print("没有数据可保存。")
@@ -444,9 +454,11 @@ def save_to_csv(news_list, output_dir=None):
             writer.writerow(row)
     print(f"成功保存 {len(news_list)} 条新闻到 {filename}")
 
+
 def main():
     print("=" * 60)
-    print("文化和旅游部"时政要闻"爬虫")
+    # 修复语法错误：使用转义双引号
+    print("文化和旅游部\"时政要闻\"爬虫")
     print(f"最大页数: {'全部' if MAX_PAGES == 0 else MAX_PAGES}  |  输出目录: {OUTPUT_DIR}")
     print("=" * 60)
     news_data = crawl_all_news(START_URL)
@@ -462,6 +474,7 @@ def main():
         print(f"正文预览：{content_preview}...")
     else:
         print("未获取到任何数据，请检查网络或网站结构是否已变化。")
+
 
 if __name__ == "__main__":
     main()
