@@ -50,6 +50,9 @@ class Crawler:
         code_path = api.get('code_path', '')
 
         all_items = []
+        # 无分页信息 + 无关键词 = 单页静态接口，只爬一次
+        is_single_page = (not pager_path and not api.get('page_field') 
+                          and not api.get('keyword_field'))
 
         for kw in keywords:
             print(f'\n搜索: {kw}')
@@ -130,7 +133,15 @@ class Crawler:
 
                 print(f'  第 {page_no} 页: {len(items)} 条')
 
-                if len(items) < page_size or (self.max_pages and page_no >= self.max_pages):
+                # 终止条件：
+                # 1. 单页接口：只爬第一页
+                # 2. 返回条数 < 每页条数（已到最后一页）
+                # 3. 达到最大页数限制
+                if is_single_page:
+                    break
+                if page_size > 0 and len(items) < page_size:
+                    break
+                if self.max_pages and page_no >= self.max_pages:
                     break
                 page_no += 1
                 time.sleep(self.delay)
