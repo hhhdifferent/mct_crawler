@@ -29,7 +29,7 @@ jobs:
     if: needs.discover.outputs.configs != '[]' && needs.discover.outputs.configs != ''
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false          # 某个站点失败不影响其他站点
+      fail-fast: false
       matrix:
         config: ${{ fromJson(needs.discover.outputs.configs) }}
     steps:
@@ -38,16 +38,22 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: 生成安全的 Artifact 名称
+        id: name
+        run: |
+          safe_name=$(echo "${{ matrix.config }}" | sed 's|/|-|g; s|\.json$||')
+          echo "safe_name=$safe_name" >> "$GITHUB_OUTPUT"
+
       - name: 安装依赖
         run: pip install requests lxml
 
       - name: 运行爬虫 - ${{ matrix.config }}
         run: python crawler.py "${{ matrix.config }}"
 
-      - name: 上传结果到 Artifact
+      - name: 上传结果
         uses: actions/upload-artifact@v4
         with:
-          name: result-${{ replace(replace(matrix.config, '/', '-'), '.json', '') }}-${{ github.run_id }}
+          name: result-${{ steps.name.outputs.safe_name }}-${{ github.run_id }}
           path: |
             **/*.csv
           retention-days: 90
