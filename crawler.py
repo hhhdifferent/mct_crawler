@@ -311,10 +311,21 @@ if __name__ == '__main__':
         print('示例: python crawler.py guojiawenlv/config.json')
         sys.exit(1)
 
-    config_path = sys.argv[1]
+    config_path = os.path.abspath(sys.argv[1])  # 转为绝对路径，适配 CI 环境
+    if not os.path.exists(config_path):
+        print(f'配置文件不存在: {config_path}')
+        sys.exit(1)
+
     with open(config_path, 'r', encoding='utf-8') as f:
         cfg = json.load(f)
 
     crawler = Crawler(cfg)
-    crawler.output_dir = os.path.dirname(os.path.abspath(config_path))
-    crawler.run()
+    # 输出目录 = 配置文件所在目录（保证 CSV 写入站点目录）
+    crawler.output_dir = os.path.dirname(config_path)
+
+    try:
+        crawler.run()
+    except Exception as e:
+        print(f'\n爬虫运行失败: {e}')
+        traceback.print_exc()
+        sys.exit(1)
