@@ -5,7 +5,6 @@ import time
 import csv
 import re
 import os
-import sys
 from datetime import datetime
 from urllib.parse import urljoin
 import html as html_parser
@@ -22,9 +21,8 @@ REQUEST_DELAY = 1
 DETAIL_DELAY = 0.5
 
 # GitHub Actions 环境变量控制
-MAX_PAGES = int(os.environ.get('MAX_PAGES', '0'))  # 0=全部页面
-OUTPUT_DIR = os.environ.get('OUTPUT_DIR', '.')  # 输出目录
-
+MAX_PAGES = int(os.environ.get('MAX_PAGES', '0'))       # 0=全部页面
+OUTPUT_DIR = os.environ.get('OUTPUT_DIR', '.')           # 输出目录
 
 def fetch_page(url):
     try:
@@ -35,7 +33,6 @@ def fetch_page(url):
     except Exception as e:
         print(f"  请求失败 {url}: {e}")
         return None
-
 
 def parse_news_list(tree, page_url):
     news_items = []
@@ -51,14 +48,12 @@ def parse_news_list(tree, page_url):
                 news_items.append({'title': title, 'url': full_url})
     return news_items
 
-
 def get_next_page_url(tree, current_url):
     """
     获取下一页URL。
     mct.gov.cn 的分页链接由 JS 动态生成，静态 HTML 中不存在。
     因此按 URL 规律直接构造：index.htm → index_1.htm → index_2.htm → ...
     """
-    import re
     # 匹配 /whzx/szyw/index.htm 或 /whzx/szyw/index_N.htm
     match = re.match(r'(.*/whzx/szyw/index)(_(\d+))?\.htm', current_url)
     if match:
@@ -83,7 +78,6 @@ def get_next_page_url(tree, current_url):
     print(f"    ✗ 无法构造下一页URL")
     return None
 
-
 def clean_text_ex(text):
     """增强清理：去除零宽空格、不可见控制字符、HTML实体残留"""
     if not text:
@@ -101,7 +95,6 @@ def clean_text_ex(text):
     # 合并多余空白字符（包括换行、制表）为单个空格
     text = re.sub(r'\s+', ' ', text)
     return text.strip()
-
 
 def parse_article_detail(url):
     tree = fetch_page(url)
@@ -123,57 +116,44 @@ def parse_article_detail(url):
     source = ''
 
     # ------ 时间提取：gov.cn / mct.gov.cn 兼容 ------
-    # 优先顺序：meta标签 > 特定class/id > 特征文本
-
-    # 1) meta 标签（最可靠）
     time_candidates = tree.xpath('//meta[@property="article:published_time"]/@content')
     if not time_candidates:
         time_candidates = tree.xpath('//meta[@name="publishdate"]/@content')
 
-    # 2) gov.cn：class="pages-date" 或 id="PubTime"
     if not time_candidates:
         time_candidates = tree.xpath('//span[contains(@class, "pages-date")]/text()')
     if not time_candidates:
         time_candidates = tree.xpath('//span[@id="PubTime"]/text()')
 
-    # 3) mct.gov.cn 新版：包含日期特征的文本（优先匹配与URL一致的日期）
     if not time_candidates:
-        # 从URL提取年月用于校验
         url_match = re.search(r'/(\d{4})(\d{2})/(\d{2})/', url)
         if url_match:
             url_year, url_month, url_day = url_match.groups()
-            # 找与URL年月日完全匹配的日期文本
             time_candidates = tree.xpath(
                 f"//text()[contains(., '{url_year}-{url_month}-{url_day}')]"
             )
         if not time_candidates:
-            # 找包含年份且格式像日期的文本（限制长度避免匹配到正文）
             time_candidates = tree.xpath(
                 "//text()[contains(., '202') and string-length(normalize-space(.)) <= 30]"
             )
 
-    # 从URL提取年月日用于校验
     url_ymd = re.search(r'/(\d{4})(\d{2})/(\d{2})/', url)
     url_year = url_ymd.group(1) if url_ymd else None
     url_month = url_ymd.group(2) if url_ymd else None
     url_day = url_ymd.group(3) if url_ymd else None
 
     for raw_time in (tc.strip() for tc in time_candidates if tc and tc.strip()):
-        # 精确匹配 "YYYY-MM-DD HH:MM" 格式
         match = re.search(r'(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})', raw_time)
         if not match:
             match = re.search(r'(\d{4}-\d{2}-\d{2})', raw_time)
         if match:
             candidate_date = match.group(1)
-            # 如果URL有完整年月日，校验日期是否一致
             if url_year and url_month and url_day:
-                # 候选日期是否与URL的月日一致
                 if candidate_date[:10] == f'{url_year}-{url_month}-{url_day}':
                     publish_time = candidate_date
                     break
-                # 如果候选日期月份不对，跳过（可能是正文中的历史日期）
                 elif candidate_date[5:7] != url_month:
-                    continue  # 月份不匹配，跳过这条候选
+                    continue
                 else:
                     publish_time = candidate_date
                     break
@@ -181,31 +161,25 @@ def parse_article_detail(url):
                 publish_time = candidate_date
                 break
 
-    # ------ 来源提取：gov.cn / mct.gov.cn 兼容 ------
-    # 1) gov.cn：class="pages-source" 或 class="ly"
+    # 来源提取
     source_elem = tree.xpath('//span[contains(@class, "pages-source")]/text()')
     if not source_elem:
         source_elem = tree.xpath('//span[contains(@class, "ly")]/text()')
-    # 2) 包含"来源"文字的 span/div
     if not source_elem:
         source_elem = tree.xpath('//span[contains(text(), "来源")]/text() | //div[contains(text(), "来源")]/text()')
-    # 3) mct.gov.cn 原始 XPath
     if not source_elem:
         source_elem = tree.xpath('/html/body/div[3]/div[1]/div/div[1]/span')
 
     if source_elem:
-        raw_source = source_elem[0].strip() if isinstance(source_elem[0], str) else source_elem[
-            0].text_content().strip()
-        source = clean_text_ex(raw_source)  # 关键清理步骤
-        # 提取"来源：xxx"中的名称
+        raw_source = source_elem[0].strip() if isinstance(source_elem[0], str) else source_elem[0].text_content().strip()
+        source = clean_text_ex(raw_source)
         sm = re.search(r'来源[：:]\s*(.*)', source)
         if sm:
             source = clean_text_ex(sm.group(1).strip())
 
-    # 备选逻辑（如果精确XPath失效）
+    # 备选逻辑
     if not publish_time or not source:
-        meta_candidates = tree.xpath(
-            '//div[contains(text(), "来源") or contains(text(), "时间")] | //span[contains(text(), "来源") or contains(text(), "时间")]')
+        meta_candidates = tree.xpath('//div[contains(text(), "来源") or contains(text(), "时间")] | //span[contains(text(), "来源") or contains(text(), "时间")]')
         meta_text = ''
         for elem in meta_candidates:
             txt = elem.text_content().strip()
@@ -218,7 +192,6 @@ def parse_article_detail(url):
                 if not tm:
                     tm = re.search(r'(\d{4}-\d{2}-\d{2})', meta_text)
                 if not tm:
-                    # 中文日期格式：如 "6月9日"
                     tm = re.search(r'(\d{1,2})月(\d{1,2})日', meta_text)
                     if tm:
                         month = tm.group(1).zfill(2)
@@ -230,10 +203,9 @@ def parse_article_detail(url):
             if not source:
                 sm = re.search(r'来源[：:]\s*(.*?)(?:\s|$)', meta_text)
                 if sm:
-                    source = clean_text_ex(sm.group(1).strip())  # 清洗
+                    source = clean_text_ex(sm.group(1).strip())
                 elif '新华社' in meta_text:
                     source = '新华社'
-        # meta标签回退
         if not publish_time:
             meta_time = tree.xpath('//meta[@property="article:published_time"]/@content')
             if meta_time:
@@ -247,133 +219,16 @@ def parse_article_detail(url):
     content = ''
     content_elem = tree.xpath('//*[@id="UCAP-CONTENT"]')
     if not content_elem:
-        content_elem = tree.xpath(
-            '//div[@class="TRS_Editor"] | //div[@class="article-content"] | //div[@class="content"]')
+        content_elem = tree.xpath('//div[@class="TRS_Editor"] | //div[@class="article-content"] | //div[@class="content"]')
     if content_elem:
         paragraphs = content_elem[0].xpath('.//p//text() | .//div//text()')
         raw_content = '\n'.join([p.strip() for p in paragraphs if p.strip()])
-        content = clean_text_ex(raw_content)  # 也使用增强清洗
+        content = clean_text_ex(raw_content)
     if not content and content_elem:
         raw_content = content_elem[0].text_content().strip()
         content = clean_text_ex(raw_content)
 
-    # ===== 最终兜底：从正文提取日期（仅作最后手段）=====
-    if not publish_time and content:
-        # 从 URL 提取完整年月日用于校验
-        url_ym = re.search(r'/(\d{4})(\d{2})/(\d{2})/', url)
-        if not url_ym:
-            url_ym = re.search(r'/(\d{4})(\d{2})/', url)
-        fallback_year = url_ym.group(1) if url_ym else '2026'
-        fallback_month = url_ym.group(2) if url_ym else '06'
-        fallback_day = url_ym.group(3) if url_ym and len(url_ym.groups()) >= 3 else None
-
-        # 先在正文前2000字符中找 ISO 日期格式
-        iso_match = re.search(r'(\d{4})-(\d{2})-(\d{2})', content[:2000])
-        if iso_match:
-            iso_month = iso_match.group(2)
-            # 只有月份与URL一致才采用
-            if iso_month == fallback_month:
-                publish_time = iso_match.group(1)
-            # 否则继续找
-        if not publish_time:
-            # 在正文前2000字符中，优先匹配与URL月日一致的月日
-            all_md = list(re.finditer(r'(\d{1,2})月(\d{1,2})日', content[:2000]))
-            best_match = None
-            if fallback_day:
-                # URL有具体日期时，精确匹配月日
-                for m in all_md:
-                    if m.group(1).zfill(2) == fallback_month and m.group(2).zfill(2) == fallback_day:
-                        best_match = m
-                        break
-            if not best_match:
-                for m in all_md:
-                    if m.group(1).zfill(2) == fallback_month:
-                        best_match = m
-                        break
-            if not best_match and all_md:
-                best_match = None  # 不随意取正文中月份不对的日期
-
-            if best_match:
-                month = best_match.group(1).zfill(2)
-                day = best_match.group(2).zfill(2)
-                publish_time = f'{fallback_year}-{month}-{day}'
-
-    # 仍然失败：搜索整个页面文本（含导航、面包屑等可能藏日期的地方）
-    if not publish_time:
-        # 从 URL 提取年月用于校验
-        url_ym2 = re.search(r'/(\d{4})(\d{2})/(\d{2})/', url)
-        if not url_ym2:
-            url_ym2 = re.search(r'/(\d{4})(\d{2})/', url)
-        url_year2 = url_ym2.group(1) if url_ym2 else '2026'
-        url_month2 = url_ym2.group(2) if url_ym2 else '06'
-        url_day2 = url_ym2.group(3) if url_ym2 and len(url_ym2.groups()) >= 3 else None
-
-        page_text = tree.xpath('//body//text()')
-        page_text = ' '.join(t.strip() for t in page_text if t.strip())
-        # 先找 ISO 日期，月份必须与URL一致
-        iso_page_matches = list(re.finditer(r'(\d{4})-(\d{2})-(\d{2})', page_text[:3000]))
-        for m in iso_page_matches:
-            if m.group(2) == url_month2:
-                publish_time = m.group(1)
-                break
-        if not publish_time:
-            # 优先找与URL月日一致的 月日
-            all_page_md = list(re.finditer(r'(\d{1,2})月(\d{1,2})日', page_text[:3000]))
-            if url_day2:
-                for m in all_page_md:
-                    if m.group(1).zfill(2) == url_month2 and m.group(2).zfill(2) == url_day2:
-                        publish_time = f'{url_year2}-{m.group(1).zfill(2)}-{m.group(2).zfill(2)}'
-                        break
-            if not publish_time:
-                for m in all_page_md:
-                    if m.group(1).zfill(2) == url_month2:
-                        publish_time = f'{url_year2}-{m.group(1).zfill(2)}-{m.group(2).zfill(2)}'
-                        break
-
-    # 仍然失败：搜索页面中所有元素的文本（不限body）
-    if not publish_time:
-        url_ym3 = re.search(r'/(\d{4})(\d{2})/(\d{2})/', url)
-        if not url_ym3:
-            url_ym3 = re.search(r'/(\d{4})(\d{2})/', url)
-        url_year3 = url_ym3.group(1) if url_ym3 else '2026'
-        url_month3 = url_ym3.group(2) if url_ym3 else '06'
-        url_day3 = url_ym3.group(3) if url_ym3 and len(url_ym3.groups()) >= 3 else None
-
-        all_text = ' '.join(t.strip() for t in tree.xpath('//*//text()') if t.strip())
-        # 先找 ISO 日期，月份必须与URL一致
-        iso_all_matches = list(re.finditer(r'(\d{4})-(\d{2})-(\d{2})', all_text[:5000]))
-        for m in iso_all_matches:
-            if m.group(2) == url_month3:
-                publish_time = m.group(1)
-                break
-        # 再找中文日期：优先匹配与URL月日一致的
-        if not publish_time:
-            all_md = list(re.finditer(r'(\d{4})年(\d{1,2})月(\d{1,2})日', all_text[:5000]))
-            if url_day3:
-                for m in all_md:
-                    if m.group(2).zfill(2) == url_month3 and m.group(3).zfill(2) == url_day3:
-                        publish_time = f'{m.group(1)}-{m.group(2).zfill(2)}-{m.group(3).zfill(2)}'
-                        break
-            if not publish_time:
-                for m in all_md:
-                    if m.group(2).zfill(2) == url_month3:
-                        publish_time = f'{m.group(1)}-{m.group(2).zfill(2)}-{m.group(3).zfill(2)}'
-                        break
-        # 再找 6月4日 格式：优先与URL月日一致
-        if not publish_time:
-            all_md2 = list(re.finditer(r'(\d{1,2})月(\d{1,2})日', all_text[:5000]))
-            if url_day3:
-                for m in all_md2:
-                    if m.group(1).zfill(2) == url_month3 and m.group(2).zfill(2) == url_day3:
-                        publish_time = f'{url_year3}-{m.group(1).zfill(2)}-{m.group(2).zfill(2)}'
-                        break
-            if not publish_time:
-                for m in all_md2:
-                    if m.group(1).zfill(2) == url_month3:
-                        publish_time = f'{url_year3}-{m.group(1).zfill(2)}-{m.group(2).zfill(2)}'
-                        break
-
-    # 仍然失败：仅用URL中的日期兜底
+    # 最终兜底：URL中的日期
     if not publish_time:
         ym = re.search(r'/(\d{4})(\d{2})/(\d{2})/', url)
         if not ym:
@@ -384,7 +239,6 @@ def parse_article_detail(url):
             else:
                 publish_time = f'{ym.group(1)}-{ym.group(2)}'
 
-    # 如果source也缺失，尝试从内容开头提取
     if not source and content:
         src_match = re.search(r'^(新华社|人民日报|央视新闻|光明日报|经济日报)', content[:100])
         if src_match:
@@ -396,7 +250,6 @@ def parse_article_detail(url):
         'source': source,
         'content': content
     }
-
 
 def crawl_all_news(start_url):
     all_news = []
@@ -435,7 +288,6 @@ def crawl_all_news(start_url):
 
     return all_news
 
-
 def save_to_csv(news_list, output_dir=None):
     if not news_list:
         print("没有数据可保存。")
@@ -454,10 +306,8 @@ def save_to_csv(news_list, output_dir=None):
             writer.writerow(row)
     print(f"成功保存 {len(news_list)} 条新闻到 {filename}")
 
-
 def main():
     print("=" * 60)
-    # 修复语法错误：使用转义双引号
     print("文化和旅游部\"时政要闻\"爬虫")
     print(f"最大页数: {'全部' if MAX_PAGES == 0 else MAX_PAGES}  |  输出目录: {OUTPUT_DIR}")
     print("=" * 60)
@@ -474,7 +324,6 @@ def main():
         print(f"正文预览：{content_preview}...")
     else:
         print("未获取到任何数据，请检查网络或网站结构是否已变化。")
-
 
 if __name__ == "__main__":
     main()
