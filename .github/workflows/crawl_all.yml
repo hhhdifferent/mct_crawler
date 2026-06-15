@@ -4,6 +4,9 @@ on:
     - cron: '0 2 * * *'        # 北京时间每天10:00（UTC 2:00）
   workflow_dispatch:            # 也支持手动触发
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 jobs:
   discover:
     runs-on: ubuntu-latest
