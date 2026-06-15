@@ -1,14 +1,15 @@
 # Python
 __pycache__/
 *.py[cod]
-*.egg-info/
-.env
 
-# 爬虫数据输出
-data/
+# CSV 输出
 *.csv
+!template.csv
 
 # IDE
 .idea/
 .vscode/
 *.iml
+
+# 数据
+data/

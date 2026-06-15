@@ -1,26 +1,30 @@
 {
   "name": "湖北省文旅厅政策",
   "source_type": "json_api",
-  "entry_url": "https://wlt.hubei.gov.cn/zfxxgk/zc/gfxwj/zcfg.json",
-  "encoding": "utf-8",
-  "request_delay": 1,
-  "detail_delay": 0.5,
-  "max_pages": 0,
-  "data_path": "data",
-  "item_fields": {
-    "title": "FILENAME",
-    "url": "URL",
-    "publish_time": "PUBDATE",
-    "source": "PUBLISHER",
-    "file_type": "FILETYPE",
-    "file_num": "FILENUM",
-    "effective_state": "EFFECTIVESTATE"
+  "request_delay": 0.5,
+  "api": {
+    "url": "https://wlt.hubei.gov.cn/zfxxgk/zc/gfxwj/zcfg.json",
+    "method": "GET",
+    "headers": {},
+    "body": {},
+    "keyword_field": "",
+    "page_field": "",
+    "data_path": "data",
+    "pager_path": "",
+    "keywords": [""],
+    "page_size": 0,
+    "field_map": {
+      "title": "FILENAME",
+      "url": "URL",
+      "publish_time": "PUBDATE",
+      "source": "PUBLISHER",
+      "file_type": "FILETYPE",
+      "file_num": "FILENUM",
+      "effective_state": "EFFECTIVESTATE"
+    }
   },
   "detail_page": {
     "selector_type": "xpath",
-    "title": "//h2/text() | //h1/text()",
-    "content": "//div[@class='detail-content']//p//text() | //div[@class='TRS_Editor']//p//text() | //div[contains(@class,'article')]//p//text()",
-    "time_regex": "(\\d{4}-\\d{2}-\\d{2}(?:\\s+\\d{2}:\\d{2})?)",
-    "source_regex": "来源[：:]\\s*(.*?)(?:\\s|$)"
+    "content": "//div[@class='detail-content']//p//text() | //div[@class='TRS_Editor']//p//text()"
   }
 }

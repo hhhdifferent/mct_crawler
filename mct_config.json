@@ -1,0 +1,28 @@
+{
+  "name": "文旅部时政要闻",
+  "source_type": "html",
+  "encoding": "utf-8",
+  "request_delay": 1,
+  "max_pages": 100,
+  "html": {
+    "entry_url": "https://www.mct.gov.cn/whzx/szyw/index.htm",
+    "detail_delay": 0.5,
+    "list_page": {
+      "item_selector": "//td[1]/a",
+      "selector_type": "xpath",
+      "title_selector": "./text()",
+      "link_selector": "./@href"
+    },
+    "pagination": {
+      "type": "url_pattern",
+      "pattern": "https://www.mct.gov.cn/whzx/szyw/index_#{page}.htm"
+    },
+    "detail_page": {
+      "selector_type": "xpath",
+      "title": "//*[@id='ti']/text()",
+      "publish_time": "//meta[@name='publishdate']/@content",
+      "content": "//*[@id='UCAP-CONTENT']//p//text()",
+      "time_regex": "(\\d{4}-\\d{2}-\\d{2})"
+    }
+  }
+}

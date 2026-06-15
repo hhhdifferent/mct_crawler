@@ -1,0 +1,45 @@
+{
+  "name": "国家文旅政策",
+  "source_type": "json_api",
+  "request_delay": 0.5,
+  "api": {
+    "url": "https://sousuoht.www.gov.cn/athena/forward/2B22E8E39E850E17F95A016A74FCB6B673336FA8B6FEC0E2955907EF9AEE06BE",
+    "method": "POST",
+    "headers": {
+      "athenaappkey": "LblXFSpwh5XQjN6XMuWkfyKyiLOV2lylan4zvhjyi7tvzbmGxGP1ytEglbzoCGUJWM5Xx1%2B%2FxjoUwdm4ztsSHuz8tLpl27KEJohvgvXBnRb4p0QFDaDCtyjUverhvl%2B1YaqG4rX%2B5xuZO5pOFxeCvBKYQRJU97pM7nT5s4Sj%2Fh4%3D",
+      "athenaappname": "%E5%9B%BD%E7%BD%91%E6%90%9C%E7%B4%A2",
+      "Origin": "https://sousuo.www.gov.cn",
+      "Referer": "https://sousuo.www.gov.cn/"
+    },
+    "body": {
+      "code": "17da70961a7",
+      "historySearchWords": [],
+      "dataTypeId": "107",
+      "orderBy": "time",
+      "searchBy": "title",
+      "appendixType": "",
+      "granularity": "ALL",
+      "trackTotalHits": true,
+      "beginDateTime": "",
+      "endDateTime": "",
+      "isSearchForced": 0,
+      "filters": [],
+      "pageNo": 1,
+      "pageSize": 10,
+      "customFilter": {"operator": "and", "properties": []}
+    },
+    "keyword_field": "searchWord",
+    "page_field": "pageNo",
+    "page_size_field": "pageSize",
+    "page_size": 10,
+    "data_path": "result.data.middle.list",
+    "pager_path": "result.data.pager",
+    "keywords": ["文化旅游", "文旅", "乡村旅游", "政府工作报告"],
+    "field_map": {
+      "title": "title_no_tag",
+      "url": "url",
+      "time": "time",
+      "summary": "summary"
+    }
+  }
+}
