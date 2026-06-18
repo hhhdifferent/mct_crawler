@@ -1,3 +1,4 @@
+本项目仅用于学习交流
 # 通用定时爬虫模板
 
 支持 `json_api`（调 JSON 接口）和 `html`（解析 HTML 页面）两种模式，可在 GitHub Actions 上定时运行。
